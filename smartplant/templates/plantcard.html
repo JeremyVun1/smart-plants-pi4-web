@@ -1,0 +1,82 @@
+
+{% if smartplant.socketExists %}
+<img src="/static/{{ smartplant.pname.lower() }}.jpeg" class="mx-auto align-top mb-3" alt="">
+{% else %}
+<img src="/static/error.jpeg" class="mx-auto align-top mb-3" alt="">
+{% endif %}
+<div class="background-color: {% if smartplant.socketExists %}bg.white{% else %}bg.secondary{% endif %}">
+<h2 class="text-center font-weight-bold">{{ smartplant.pname }} [{{ smartplant.mac }}]</h2>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th scope="property">property</th>
+                                    <th scope="value">value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Plant Id</td>
+                                    <td>{{ smartplant.pid }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Plant Name</td>
+                                    <td>{{ smartplant.pname }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Plant Description</td>
+                                    <td>{{ smartplant.pdesc }}</td> 
+                                </tr>
+                                <tr>
+                                    <td>Date of Birth</td>
+                                    <td>{{ smartplant.pdate }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Waterpump Mode</td>
+                                    {% if smartplant.pumpmode == 'a' %}
+                                        <td>AUTO</td>
+                                    {% else %}
+                                        <td>MANUAL</td>
+                                    {% endif %}
+                                </tr>
+                                <tr>
+                                    <td>Waterpump Speed</td>
+                                    <td>{{ smartplant.pumpspeed }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Light State</td>
+                                    {% if smartplant.lightstate %}
+                                        <td>ON</td>
+                                    {% else %}
+                                        <td>OFF</td>
+                                    {% endif %}
+                                </tr>
+                                <tr>
+                                    <td>Light Brightness</td>
+                                    {% if smartplant.lightmode == 'l' %}
+                                        <td>LOW</td>
+                                    {% elif smartplant.lightmode == 'm' %}
+                                        <td>MEDIUM</td>
+                                    {% else %}
+                                        <td>HIGH</td>
+                                    {% endif %}
+                                </tr>
+                                <tr>
+                                    {% if smartplant.moistval == 0 %}
+                                        {% set moistpct = 0 %}
+                                    {% else %}
+                                        {% set moistpct = smartplant.moistval / 1024 %}
+                                    {% endif %}
+                                    
+                                    <td style="color:{% if moistpct < 0.5 %}red{% else %}green{% endif %}">Moisture</td>
+                                    <td>
+                                        <smartplantan style="color:{% if moistpct < 0.5 %}red{% else %}green{% endif %}"></smartplantan>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                                {{ moistpct * 100 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>

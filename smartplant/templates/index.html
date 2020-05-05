@@ -1,19 +1,27 @@
 {% extends "layout.html" %}
 
 {% block content %}
-    <div class="container pt-2 pb-2">
-        <div class="row">
-            <div class="col-auto mx-auto">
-                <form method="post" class="d-inline-flex" action="{{ url_for('index') }}">
-                    <input type="submit" class="btn btn-primary" onclick="showSpinner()" value="Scan for Smartplant Devices">
-                </form>
+    <div class="w-100 pt-2 pb-2">
+        
+        <form method="post" class="row-fluid m-2 h-5 border shadow-sm rounded" action="{{ url_for('index') }}">
+            <input type="submit" class="btn btn-primary" style="width: 100%; height: 50px" value="Scan and connect to Smartplant Devices">
+        </form>
+        <div class="row border shadow-sm m-2 p-2 bg-white">
+            {% for smartplant in smartplants %}
+            <div class="col-sm-6 p-0 m-2 border shadow rounded">
+                <div class="card">
+                    {% if smartplant.socketExists %}
+                        <div class="card-body" style="background-color: {% if smartplant.moistval < 500 %}rgba(255,200,200){% else %}rgb(220,255,220){% endif %};">
+                    {% else %}
+                        <div class="card-body bg-secondary">
+                    {% endif %}
+                        
+                        {% include 'plantcard.html' %}
+                        
+                        <a href="/control/{{ smartplant.guid }}" class="btn {% if smartplant.socketExists %}btn-primary{% else %}btn-dark disabled{% endif %}" style="width: 100%; height: 50px">Control Smart plant</a>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="row">
-            <h1>Smart Plant Home</h1>
-            {% for item in data %}
-            <p>fname: {{ item.fname }}</p>
-            <p>lname: {{ item.lname }}</p>
             {% endfor %}
         </div>
     </div>

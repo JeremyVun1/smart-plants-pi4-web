@@ -104,3 +104,4 @@ class SmartPlantState:
     lightstate: bool
     lightmode: str
     moistval: int
+    socketExists: bool

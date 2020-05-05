@@ -6,7 +6,7 @@ app.config['SECRET_KEY'] = "32018ddbe36292e8a6543bc5a54a6c42"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smartplant.db'
 db = SQLAlchemy(app)
 
-sockets = []
+sockets = {}
 
 from smartplant import models
 from smartplant import routes

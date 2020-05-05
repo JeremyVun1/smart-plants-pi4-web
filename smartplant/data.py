@@ -5,39 +5,28 @@ from smartplant import db
 
 def parse_light_state(guid, json_obj):
     print(f"parsing light state for guid: {guid}")
-    model = LightingModel.query.filter_by(guid=guid).one_or_none()
-    if model:
-        model.replaceWith(LightingModel(guid=guid, state=(json_obj['s'] != '0'), mode=json_obj['e']))
-        return model
-    else:
-        return LightingModel(guid=guid, state=(json_obj['s'] != '0'), mode=json_obj['e'])
+    return LightingModel(guid=guid, state=(json_obj['s'] != '0'), mode=json_obj['e'])
 
 
 def parse_waterpump_state(guid, json_obj):
     print(f"parsing waterpump state for guid: {guid}")
-    model = PumpModel.query.filter_by(guid=guid).one_or_none()
-    if model:
-        model.replaceWith(PumpModel(guid=guid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v'])))
-        return model
-    else:
-        return PumpModel(guid=guid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v']))
+    return PumpModel(guid=guid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v']))
 
 
 def parse_moisture_state(guid, json_obj):
     print(f"parsing moisture state for guid: {guid}")
-    model = MoistureModel.query.filter_by(guid=guid).one_or_none()
-    if model:
-        model.replaceWith(MoistureModel(guid=guid, moisture=int(json_obj['v'])))
-        return model
-    else:
-        return MoistureModel(guid=guid, moisture=int(json_obj['v']))
+    return MoistureModel(guid=guid, moisture=int(json_obj['v']))
 
 
 def parse_plant_state(guid, json_obj):
     print(f"parsing plant state for guid: {guid}")
     model = PlantModel.query.filter_by(guid=guid).one_or_none()
     if model:
-        model.replaceWith(PlantModel(guid=guid, puid=json_obj['u'], pid=int(json_obj['i']), name=json_obj['n'], description=json_obj['c']))
+        model.guid = guid
+        model.puid = json_obj['u']
+        model.pid = int(json_obj['i'])
+        model.name = json_obj['n']
+        model.description = json_obj['c']
         return model
     else:
         return PlantModel(guid=guid, puid=json_obj['u'], pid=int(json_obj['i']), name=json_obj['n'], description=json_obj['c'])
@@ -76,7 +65,6 @@ def load_smartplants():
     smartplant_states = []
 
     devices = SmartPlantDevice.query.filter_by(isSmartPlant=True).all()
-    print(devices)
     for device in devices:
         smartplant_states.append(load_smartplant(device))
 
@@ -102,6 +90,27 @@ def load_smartplant(device):
         pumpspeed=pump.speed,
         lightstate=light.state,
         lightmode=light.mode,
-        moistval=moist.moisture
+        moistval=moist.moisture,
+        socketExists=True
     )
     return result
+
+
+def load_device(guid):
+    return SmartPlantDevice.query.filter_by(guid=guid).one_or_none()
+
+
+def update_light_db_with_commands(guid, form_dict):
+    print("saving into light db")
+    print(form_dict)
+    model = LightingModel(guid=guid, mode=form_dict['lightMode'], state=('lightOn' in form_dict and form_dict['lightOn'] == 'y'))
+    db.session.add(model)
+    db.session.commit()
+
+
+def update_pump_db_with_commands(guid, form_dict):
+    print("saving into pump db")
+    print(form_dict)
+    model = PumpModel(guid=guid, mode=form_dict['pumpMode'], state=('pumpOn' in form_dict and form_dict['pumpOn'] == 'y'), speed=form_dict['pumpSpeed'])
+    db.session.add(model)
+    db.session.commit()

@@ -12,6 +12,8 @@ from smartplant import model
 
 
 def handle_device_events():
+    global sockets
+    print("starting the scheduled event")
 
     '''
     # check if our devices have disconnnected
@@ -25,13 +27,13 @@ def handle_device_events():
     '''
 
     # read from all sockets
-    for socket in sockets:
-        response = readLine(socket)
+    for mac in sockets:
+        response = readLine(sockets[mac])
         print(response)
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=handle_device_events, trigger="interval", seconds=10)
+scheduler.add_job(func=handle_device_events, trigger="interval", seconds=30)
 scheduler.start()
 
 atexit.register(lambda: scheduler.shutdown())

@@ -16,7 +16,6 @@ def createBtSocket(addr, port=1):
 
 
 def fetchDeviceQueryResponse(addr):
-    print(addr)
     socket = createBtSocket(addr)
 
     socket.send(int(8).to_bytes(1, "little")) # concert int code into byte
@@ -57,9 +56,9 @@ def connect_smartplant_devices():
     time.sleep(2)
     smartPlants = SmartPlantDevice.query.filter_by(isSmartPlant=True).all()
 
-    sockets = []
+    sockets = {}
     for sp in smartPlants:
-        sockets.append(createBtSocket(sp.mac, 1))
+        sockets[sp.mac] = createBtSocket(sp.mac, 1)
 
     print(f"connected sockets: {sockets}")
     return sockets
@@ -67,8 +66,8 @@ def connect_smartplant_devices():
 
 def close_sockets(sockets):
     try:
-        for socket in sockets:
-            socket.close()
+        for mac in sockets:
+            sockets[mac].close()
     except Exception:
         print("could not close socket")
 
@@ -81,11 +80,52 @@ def request_full_state(sockets):
     responses = []
 
     # send all the requests
-    for socket in sockets:
-        socket.send(int(0).to_bytes(1, "little"))
+    for mac in sockets:
+        sockets[mac].send(int(0).to_bytes(1, "little"))
         time.sleep(1.5)
-        response = json.loads(readLine(socket))
+        response = json.loads(readLine(sockets[mac]))
         print(response)
         responses.append(response)
 
     return responses
+
+
+def send_pump_commands(socket, curr_state, form_state):
+    print("sending pump commands")
+    print(curr_state)
+    print(form_state)
+    # pump toggle mode between auto/manual
+    if form_state['pumpMode'] != curr_state.pumpmode:
+        socket.send(int(1).to_bytes(1, "little"))
+
+    # pump on/off
+    if curr_state.pumpstate and 'pumpOn' not in form_state:
+        socket.send(int(3).to_bytes(1, "little"))
+    elif 'pumpOn' in form_state and not curr_state.pumpstate and form_state['pumpOn']:
+        socket.send(int(2).to_bytes(1, "little"))
+
+    # pump speed
+    if curr_state.pumpspeed != form_state['pumpSpeed']:
+        socket.send(int(4).to_bytes(1, "little"))
+        socket.send(int(form_state['pumpSpeed']).to_bytes(1, "little"))
+
+
+def send_light_commands(socket, curr_state, form_state):
+    print("sending light commands")
+    print(curr_state)
+    print(form_state)
+    # light on/off
+    if curr_state.lightstate and 'lightOn' not in form_state:
+        socket.send(int(6).to_bytes(1, "little"))
+    elif 'lightOn' in form_state and not curr_state.lightstate and form_state['lightOn']:
+        socket.send(int(5).to_bytes(1, "little"))
+    
+    # light mode
+    if curr_state.lightmode != form_state['lightMode']:
+        socket.send(int(7).to_bytes(1, "little"))
+        if form_state['lightMode'] == 'l':
+            socket.send(int(0).to_bytes(1, "little"))
+        elif form_state['lightMode'] == 'm':
+            socket.send(int(1).to_bytes(1, "little"))
+        else:
+            socket.send(int(2).to_bytes(1, "little"))

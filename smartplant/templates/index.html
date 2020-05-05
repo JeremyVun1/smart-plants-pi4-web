@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="container pt-2 pb-2">
+        <div class="row">
+            <div class="col-auto mx-auto">
+                <form method="post" class="d-inline-flex" action="{{ url_for('index') }}">
+                    <input type="submit" class="btn btn-primary" onclick="showSpinner()" value="Scan for Smartplant Devices">
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <h1>Smart Plant Home</h1>
+            {% for item in data %}
+            <p>fname: {{ item.fname }}</p>
+            <p>lname: {{ item.lname }}</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock content %}

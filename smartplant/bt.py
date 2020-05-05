@@ -19,8 +19,8 @@ def fetchDeviceQueryResponse(addr):
     print(addr)
     socket = createBtSocket(addr)
 
-    code = int(8)
-    socket.send(code.to_bytes(1, "little")) # concert int code into byte
+    socket.send(int(8).to_bytes(1, "little")) # concert int code into byte
+    time.sleep(1)
     response = readLine(socket)
     print(response)
     response = json.loads(response)
@@ -33,16 +33,13 @@ def find_new_smartplant_devices():
     found_smartplants = []
 
     nearby_devices = bluetooth.discover_devices()
-    print(nearby_devices)
+    print(f"nearby devices: {nearby_devices}")
     for addr in nearby_devices:
         device_record = SmartPlantDevice.query.get(addr)
 
         # device is not known
         if device_record is None:
             response = fetchDeviceQueryResponse(addr)
-            print("HELLO HELLO HELLO")
-            print(response)
-            print(response['d'])
             isSmartPlant = response['d'] == "y"
 
             device = SmartPlantDevice(mac=addr, guid=response['g'], isConnected=True, isSmartPlant=isSmartPlant)
@@ -58,7 +55,6 @@ def find_new_smartplant_devices():
 
 def connect_smartplant_devices():
     time.sleep(2)
-    print("connecting smart plant devices")
     smartPlants = SmartPlantDevice.query.filter_by(isSmartPlant=True).all()
 
     sockets = []
@@ -82,16 +78,13 @@ def request_plant_state(socket):
 
 
 def request_full_state(sockets):
-    print("requesting full states")
-    print(sockets)
     responses = []
 
     # send all the requests
     for socket in sockets:
         socket.send(int(0).to_bytes(1, "little"))
-        response = readLine(socket)
-        print(response)
-        response = json.loads(response)
+        time.sleep(1.5)
+        response = json.loads(readLine(socket))
         print(response)
         responses.append(response)
 

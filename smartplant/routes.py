@@ -11,12 +11,14 @@ def index():
     smartplants = []
 
     if request.method == 'POST':
+        for socket in sockets:
+            socket.close()
+        
         find_new_smartplant_devices()
         sockets = connect_smartplant_devices()
 
     try:
-        print("GET INDEX")
-        print(sockets)
+        print(f"open sockets {sockets}")
         responses = request_full_state(sockets)
         save_smartplants(responses)
         smartplants = load_smartplants()

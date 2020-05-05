@@ -1,32 +1,49 @@
-# Data access
+# Database access
 from .models import SmartPlantState, SmartPlantDevice, PumpModel, LightingModel, PlantModel, MoistureModel
 from smartplant import db
 
 
-def parse_light_state(puid, json_obj):
-    print("parsing light state")
-    return LightingModel(puid=puid, state=json_obj['s'], mode=json_obj['e'])
+def parse_light_state(guid, json_obj):
+    print(f"parsing light state for guid: {guid}")
+    model = LightingModel.query.filter_by(guid=guid).one_or_none()
+    if model:
+        model.replaceWith(LightingModel(guid=guid, state=(json_obj['s'] != '0'), mode=json_obj['e']))
+        return model
+    else:
+        return LightingModel(guid=guid, state=(json_obj['s'] != '0'), mode=json_obj['e'])
 
 
-def parse_waterpump_state(puid, json_obj):
-    print("parsing waterpump state")
-    return PumpModel(puid=puid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v']))
+def parse_waterpump_state(guid, json_obj):
+    print(f"parsing waterpump state for guid: {guid}")
+    model = PumpModel.query.filter_by(guid=guid).one_or_none()
+    if model:
+        model.replaceWith(PumpModel(guid=guid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v'])))
+        return model
+    else:
+        return PumpModel(guid=guid, state=(json_obj['s'] != "0"), mode=json_obj['e'], speed=int(json_obj['v']))
 
 
-def parse_moisture_state(puid, json_obj):
-    print("parsing moisture state")
-    return MoistureModel(puid=puid, moisture=json_obj['v'])
+def parse_moisture_state(guid, json_obj):
+    print(f"parsing moisture state for guid: {guid}")
+    model = MoistureModel.query.filter_by(guid=guid).one_or_none()
+    if model:
+        model.replaceWith(MoistureModel(guid=guid, moisture=int(json_obj['v'])))
+        return model
+    else:
+        return MoistureModel(guid=guid, moisture=int(json_obj['v']))
 
 
-def parse_plant_state(puid, json_obj):
-    print("parsing plant state")
-    print(json_obj)
-    result =  PlantModel(puid=json_obj['u'], pid=int(json_obj['i']), name=json_obj['n'], description=json_obj['c'])
-    print(result)
-    return result
+def parse_plant_state(guid, json_obj):
+    print(f"parsing plant state for guid: {guid}")
+    model = PlantModel.query.filter_by(guid=guid).one_or_none()
+    if model:
+        model.replaceWith(PlantModel(guid=guid, puid=json_obj['u'], pid=int(json_obj['i']), name=json_obj['n'], description=json_obj['c']))
+        return model
+    else:
+        return PlantModel(guid=guid, puid=json_obj['u'], pid=int(json_obj['i']), name=json_obj['n'], description=json_obj['c'])
 
 
-module_parse_map = {
+parse_module_func_map = {
     "l": parse_light_state,
     "w": parse_waterpump_state,
     "m": parse_moisture_state,
@@ -34,32 +51,23 @@ module_parse_map = {
 }
 
 
-def save_smartplants(smartplant_states):
+def save_smartplants(smartplant_devices):
     print("saving smartplants to db")
-    print(smartplant_states)
-    for state in smartplant_states:
-        print(state)
-        # unpack the data packet from the arduino
-        guid = state['g']
-        print(f"guid: {guid}")
-        data = state['d']
-        print(f"data: {data}")
-        puid = data['d'][3]['d']['u'] # get the plant uid to link together our state models
-        print(f"puid: {puid}")
 
-        # check that the data packet is an update state packet
+    for smartplant in smartplant_devices:
+        # unpack the data packet from the arduino
+        guid = smartplant['g']
+        data = smartplant['d']
+
+        # check that the data packet is an update packet
         if (data['m'] == 'u'):
-            print("saving the update state to db")
             data = data['d']
-            print(f"data: {data}")
 
             # parse the state models and store them in the database
             for module in data:
-                print(f"module: {module}")
-                model = module_parse_map[module['m']](puid, module['d'])
-                print(f"model: {model}")
+                model = parse_module_func_map[module['m']](guid, module['d'])
                 db.session.add(model)
-            db.commit()
+                db.session.commit()
 
 
 # build smart plant data structures for front end
@@ -72,32 +80,28 @@ def load_smartplants():
     for device in devices:
         smartplant_states.append(load_smartplant(device))
 
-    print("returning smartplant_states")
-    print(smartplant_states)
     return smartplant_states
 
 
 def load_smartplant(device):
-    print("loading a single smartplant")
-    plant = PlantModel.query.get(device.puid)
-    pump = PumpModel.query.filter_by(puid=device.puid).orderby('timestamp desc').limit(1)
-    light = LightingModel.query.filter_by(puid=device.puid).orderby('timestamp desc').limit(1)
-    moist = MoistureModel.query.filter_by(puid=device.puid).orderby('timestamp desc').limit(1)
-    print("gotten the models")
-    print(plant)
-    print(pump)
-    print(light)
-    print(moist)
+    plant = PlantModel.query.filter_by(guid=device.guid).order_by(PlantModel.timestamp.desc()).limit(1).one_or_none()
+    pump = PumpModel.query.filter_by(guid=device.guid).order_by(PumpModel.timestamp.desc()).limit(1).one_or_none()
+    light = LightingModel.query.filter_by(guid=device.guid).order_by(LightingModel.timestamp.desc()).limit(1).one_or_none()
+    moist = MoistureModel.query.filter_by(guid=device.guid).order_by(MoistureModel.timestamp.desc()).limit(1).one_or_none()
 
-    return SmartPlantState(
+    result = SmartPlantState(
         mac=device.mac,
-        puid=device.puid,
-        p_name=plant.name,
-        p_desc=plant.description,
-        p_date=plant.timestamp,
-        pump_state=pump.state,
-        pump_mode=pump.mode,
-        light_state=light.state,
-        light_mode=light.mode,
-        mois_val=moist.moisture
+        guid=device.guid,
+        puid=plant.puid,
+        pid=plant.pid,
+        pname=plant.name,
+        pdesc=plant.description,
+        pdate=plant.timestamp,
+        pumpstate=pump.state,
+        pumpmode=pump.mode,
+        pumpspeed=pump.speed,
+        lightstate=light.state,
+        lightmode=light.mode,
+        moistval=moist.moisture
     )
+    return result

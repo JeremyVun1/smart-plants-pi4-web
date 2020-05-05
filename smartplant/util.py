@@ -19,6 +19,7 @@ def readLine(socket):
     # socket.setblocking(0)
     ready = select([socket], [], [], 1)
     if ready[0]:
+        print("serial buffer is ready")
         response = b""
         while True:
             # print(response)
@@ -33,4 +34,5 @@ def readLine(socket):
         print(response)
         return response
     else:
+        print("serial buffer is not ready")
         return ""

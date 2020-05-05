@@ -15,6 +15,12 @@ db.session.add(d)
 db.session.commit()
 '''
 
+model = LightingModel.query.order_by(LightingModel.timestamp.desc()).limit(1).one_or_none()
+print(model)
+if model:
+    print("hi!")
+# 
+
 print(SmartPlantDevice.query.all())
 print(PlantModel.query.all())
 print(LightingModel.query.all())

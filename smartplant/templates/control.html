@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 
+{% block chartjs %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container pt-2 pb-2">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -22,10 +26,10 @@
         </div>
     </div>
     <div class="col-sm-6">
-        <div class="card">
+        <div class="card shadow border ml-2 mr-2 mb-2">
             <form method="POST" action="">
-                {{ lightsControlForm.hidden_tag() }}
-                {{ lightsControlForm.isLightForm(class="invisible") }}
+                {{ lights_control_form.hidden_tag() }}
+                {{ lights_control_form.isLightForm(class="invisible") }}
                 <h2 class="text-center border-bottom font-weight-bold p-2 m-0">Lighting Control</h2>
                 <table class="table">
                     <thead>
@@ -33,13 +37,13 @@
                         <th scope="control">Control</td>
                     </thead>
                     <tr>
-                        <td>{{ lightsControlForm.lightOn.label(class="form-control-label") }}</td>
-                        <td>{{ lightsControlForm.lightOn(class="form-control form-control-lg") }}</td>
+                        <td>{{ lights_control_form.lightOn.label(class="form-control-label") }}</td>
+                        <td>{{ lights_control_form.lightOn(class="form-control form-control-lg") }}</td>
                     </tr>
                     <tr>
-                        <td>{{ lightsControlForm.lightMode.label(class="form-control-label") }}</td>
+                        <td>{{ lights_control_form.lightMode.label(class="form-control-label") }}</td>
                         <td>
-                            {% for subfield in lightsControlForm.lightMode %}
+                            {% for subfield in lights_control_form.lightMode %}
                                 <div class="form-check">
                                     {{ subfield }}
                                     {{ subfield.label }}
@@ -49,15 +53,15 @@
                     </tr>
                 </table>
                 <div class="form-group rounded m-2 p-0">
-                    {{ lightsControlForm.submit(class="btn btn-warning p-0 m-0 w-100 border shadow-sm") }}
+                    {{ lights_control_form.submit(class="btn btn-warning p-0 m-0 w-100 border shadow-sm") }}
                 </div>
             </form>
         </div>
 
-        <div class="card">
+        <div class="card shadow border m-2">
             <form method="POST" action="">
-                {{ pumpControlForm.hidden_tag() }}
-                {{ pumpControlForm.isPumpForm(class="invisible") }}
+                {{ pump_control_form.hidden_tag() }}
+                {{ pump_control_form.isPumpForm(class="invisible") }}
                 <h2 class="text-center border-bottom font-weight-bold p-2 m-0">Waterpump Control</h2>
                 <table class="table">
                     <thead>
@@ -65,13 +69,13 @@
                         <th scope="control">Control</td>
                     </thead>
                     <tr>
-                        <td>{{ pumpControlForm.pumpOn.label(class="form-control-label") }}</td>
-                        <td>{{ pumpControlForm.pumpOn(class="form-control form-control-lg") }}</td>
+                        <td>{{ pump_control_form.pumpOn.label(class="form-control-label") }}</td>
+                        <td>{{ pump_control_form.pumpOn(class="form-control form-control-lg") }}</td>
                     </tr>
                     <tr>
-                        <td>{{ pumpControlForm.pumpMode.label(class="form-control-label") }}</td>
+                        <td>{{ pump_control_form.pumpMode.label(class="form-control-label") }}</td>
                         <td>
-                            {% for subfield in pumpControlForm.pumpMode %}
+                            {% for subfield in pump_control_form.pumpMode %}
                                 <div class="form-check">
                                     {{ subfield }}
                                     {{ subfield.label }}
@@ -80,24 +84,127 @@
                         </td>
                     </tr>
                     <tr>
-                        <td>{{ pumpControlForm.pumpSpeed.label(class="form-control-label") }}</td>
+                        <td>{{ pump_control_form.pumpSpeed.label(class="form-control-label") }}</td>
                         <td>
                             <div>
-                                {{ pumpControlForm.pumpSpeed(min=0, max=255, oninput="outputUpdate(value)") }}
-                                <output for="pumpSpeed" id="selected-pumpSpeed">{{ pumpControlForm.pumpSpeed.data }}</output>
+                                {{ pump_control_form.pumpSpeed(min=0, max=255, oninput="outputUpdate(value)") }}
+                                <output for="pumpSpeed" id="selected-pumpSpeed">{{ pump_control_form.pumpSpeed.data }}</output>
                             </div>
                         </td>
                     </tr>
                 </table>
                 <div class="form-group rounded m-2 p-0">
-                    {{ pumpControlForm.submit(class="btn btn-warning p-0 m-0 w-100 border shadow-sm") }}
+                    {{ pump_control_form.submit(class="btn btn-warning p-0 m-0 w-100 border shadow-sm") }}
                 </div>
             </form>
         </div>
     </div>
 </div>
 <div class="row">
-    Graph
+    <div class="card shadow border w-100 m-1 p-0">
+        <canvas id="moisture-graph"></canvas>
+    </div>
+
+        <script>
+            var padZeros = function(label, size) {
+                result = label.toString();
+                while (result.length < size)
+                    result = "0" + result;
+                    
+                if (label >= 1200 && label <= 2400)
+                    result = result + "PM";
+                else result = result + "AM";
+                return result;
+            };
+
+            var labels = [{{ chart_data.xLabels | join(',') }}];
+            labels = labels.map(label => {
+                label = padZeros(label, 4);
+                label = label.slice(0,2) + ":" + label.slice(2,6);
+                return label;
+            });
+            console.log(labels);
+
+            var config = {
+                type: 'bar',
+                data: {
+                    datasets: [{
+                        label: "{{ chart_data.pump.legend }}",
+                        data: {{ chart_data.pump.data }},
+                        backgroundColor: 'rgb(120,120,255)',
+                        hoverBackgroundColor: 'rgb(70,70,200)',
+                        borderColor: 'rgb(70,70,255)',
+                        barThickness: 8
+                    },
+                    {
+                        label: "{{ chart_data.moisture.legend }}",
+                        data: {{ chart_data.moisture.data }},
+                        backgroundColor: 'rgba(200,200,200,0.5)',
+                        borderColor: 'rgb(140,140,140)',
+                        pointRadius: 0,
+                        borderWidth: 0,
+                        borderJoinStyle: 'bevel',
+                        spanGaps: false,
+                        hoverBorderWidth: 5,
+                        // Changes this dataset to become a line
+                        type: 'line'
+                    }],
+                    labels: labels
+                },
+                options: {
+                    responsive: true,
+                    title: {
+                        display: true,
+                        text: "Moisture Level and Water Pump State"
+                    },
+                    hover: {
+                        intersect: false
+                    },
+                    tooltips: {
+                        intersect: false
+                    },
+                    scales: {
+                        xAxes: [{
+                            display: true,
+                            ticks: {
+                                callback: function(dataLabel, index) {
+                                    return index %6 === 0 ? dataLabel : "";
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: "{{ chart_data.xAxisLabel }}"
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                min:0,
+                                max:100,
+                                stepSize: 10,
+                                callback: function(dataLabel, index) {
+                                    return dataLabel.toString() + "%";
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: "{{ chart_data.yAxisLabel }}"
+                            }
+                        }]
+                    },
+                    animation: {
+                        duration: 500
+                    }
+                }
+            };
+
+
+            window.onload = function() {
+                var ctx = document.getElementById('moisture-graph').getContext('2d');
+                window.myLine = new Chart(ctx, config);
+            };
+
+            </script>
+        </canvas>
 </div>
     
     

@@ -71,8 +71,8 @@
                                     <td>
                                         <smartplantan style="color:{% if moistpct < 0.5 %}red{% else %}green{% endif %}"></smartplantan>
                                         <div class="progress">
-                                            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                                {{ moistpct * 100 }}%
+                                            <div class="progress-bar" role="progressbar" aria-valuenow="{{ (moistpct * 100)|round(0,'ceil') }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ moistpct * 100|round(0,'ceil') }}%
                                             </div>
                                         </div>
                                     </td>

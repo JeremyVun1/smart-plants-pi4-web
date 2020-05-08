@@ -1,7 +1,6 @@
 import json
 import bluetooth
 from bluetooth import *
-from select import select
 import time
 from smartplant import db
 from .models import SmartPlantDevice
@@ -15,14 +14,28 @@ def createBtSocket(addr, port=1):
     return socket
 
 
+def isQueryResponse(response):
+    try:
+        obj = json.loads(response)
+        return obj['d'] == 'y'
+    except Exception:
+        return False
+
+
 def fetchDeviceQueryResponse(addr):
     socket = createBtSocket(addr)
 
-    socket.send(int(8).to_bytes(1, "little")) # concert int code into byte
-    time.sleep(1)
-    response = readLine(socket)
-    print(response)
-    response = json.loads(response)
+    socket.send(int(8).to_bytes(1, "little"))  # concert int code into byte
+
+    timeout_counter = 0
+    buffer = readLine(socket)
+    print(buffer)
+    while (not isQueryResponse(buffer) and timeout_counter < 20):
+        buffer = readLine(socket)
+        print(buffer)
+        timeout_counter = timeout_counter + 1
+
+    response = json.loads(buffer)
     socket.close()
     return response
 
@@ -53,11 +66,13 @@ def find_new_smartplant_devices():
 
 
 def connect_smartplant_devices():
-    time.sleep(2)
-    smartPlants = SmartPlantDevice.query.filter_by(isSmartPlant=True).all()
+    time.sleep(3)
+    smartplants = SmartPlantDevice.query.filter(SmartPlantDevice.isSmartPlant == True).all()
+    print("Connecting to Smartplants:")
+    print(smartplants)
 
     sockets = {}
-    for sp in smartPlants:
+    for sp in smartplants:
         sockets[sp.mac] = createBtSocket(sp.mac, 1)
 
     print(f"connected sockets: {sockets}")
@@ -77,10 +92,20 @@ def request_plant_state(socket):
 
 
 def request_full_state(sockets):
+    print("requesting full state")
     responses = []
 
     # send all the requests
     for mac in sockets:
+        # clear the buffer
+        buffer = readLine(sockets[mac])
+        print(buffer)
+        while (readLine(sockets[mac])):
+            buffer = readLine(sockets[mac])
+            print(buffer)
+            continue
+
+        print("buffer flushed")
         sockets[mac].send(int(0).to_bytes(1, "little"))
         time.sleep(1.5)
         response = json.loads(readLine(sockets[mac]))

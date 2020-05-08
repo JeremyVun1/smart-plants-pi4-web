@@ -3,6 +3,7 @@ from smartplant.forms import LightsControlForm, PumpControlForm, PumpControlMode
 from smartplant import app, sockets
 from .bt import find_new_smartplant_devices, connect_smartplant_devices, request_full_state, send_light_commands, send_pump_commands
 from .data import save_smartplants, load_smartplants, load_smartplant, load_device, update_light_db_with_commands, update_pump_db_with_commands
+from .charting import fetch_chart_data
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -67,15 +68,18 @@ def control(guid):
 
     # build control forms
     print(smartplant)
-    lightsControlForm = LightsControlForm(obj=LightsControlModel(isLightForm=True, on=smartplant.lightstate, mode=smartplant.lightmode))
+    lights_control_form = LightsControlForm(obj=LightsControlModel(isLightForm=True, on=smartplant.lightstate, mode=smartplant.lightmode))
     pumpControlForm = PumpControlForm(obj=PumpControlModel(isPumpForm=True, on=smartplant.pumpstate, mode=smartplant.pumpmode, speed=smartplant.pumpspeed))
-            
+    
+    chart_data = fetch_chart_data(hours=48)
+    print(chart_data)
 
     return render_template(
         'control.html',
         title='Control Plant',
         smartplant=smartplant,
         guid=guid,
-        lightsControlForm=lightsControlForm,
-        pumpControlForm=pumpControlForm
+        lights_control_form=lights_control_form,
+        pump_control_form=pumpControlForm,
+        chart_data=chart_data
     )

@@ -3,7 +3,6 @@ from select import select
 
 
 def readLine(socket):
-    print("reading line from socket serial")
     # socket.setblocking(0)
     ready = select([socket], [], [], 1)
     if ready[0]:
@@ -20,4 +19,4 @@ def readLine(socket):
         return response
     else:
         print("serial buffer is not ready")
-        return ""
+        return None

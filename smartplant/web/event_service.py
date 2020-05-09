@@ -7,6 +7,8 @@ import json
 
 from smartplant.database import db
 from smartplant.models import MoistureModel, PumpModel, PlantModel, LightingModel
+from smartplant.strategies import day_night_lighting_strategy, moisture_pump_strategy
+
 from .bt import connect_smartplant_devices
 from .util import read_line
 
@@ -61,23 +63,40 @@ def parse_event(json_str, app):
         return False
 
 
-def handle_device_events():
-    global sp_app
-    print("Running Event Handler Service")
-    
-    sockets = connect_smartplant_devices(sp_app)
-
+def parse_events(sockets, app):
     for mac in sockets:
         socket = sockets[mac]
-
+        
         buffer = read_line(socket)
         print(buffer)
         while buffer:
             print(buffer)
-            parse_event(buffer, sp_app)
+            parse_event(buffer, app)
             buffer = read_line(socket)
 
-        socket.close()
+
+def run_strategy(sockets, app, strategy_func):
+    for mac in sockets:
+        strategy_func(app, mac, sockets[mac])
+
+
+def close_sockets(sockets):
+    for mac in sockets:
+        sockets[mac].close()
+
+
+def handle_device_events():
+    global sp_app
+    print("Running Event Handler Service")
+    sockets = connect_smartplant_devices(sp_app)
+
+    parse_events(sockets, sp_app)
+
+    # run edge computing strategies
+    run_strategy(sockets, sp_app, day_night_lighting_strategy)
+    run_strategy(sockets, sp_app, moisture_pump_strategy)
+
+    close_sockets(sockets)
 
 
 def schedule_event_handling(app):
@@ -85,7 +104,7 @@ def schedule_event_handling(app):
     sp_app = app
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=handle_device_events, trigger="interval", seconds=30)
+    scheduler.add_job(func=handle_device_events, trigger="interval", seconds=10)
     scheduler.start()
 
     atexit.register(lambda: scheduler.shutdown())

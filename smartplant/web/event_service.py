@@ -104,7 +104,7 @@ def schedule_event_handling(app):
     sp_app = app
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=handle_device_events, trigger="interval", seconds=10)
+    scheduler.add_job(func=handle_device_events, trigger="interval", seconds=60)
     scheduler.start()
 
     atexit.register(lambda: scheduler.shutdown())

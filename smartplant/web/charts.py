@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime, timedelta
-from .models import MoistureModel, PumpModel
+
+from smartplant.models import MoistureModel, PumpModel
 
 
 def build_xlabels(start, end):
@@ -11,7 +12,7 @@ def build_xlabels(start, end):
         result.append(start.strftime('%H%M'))
         start = start + delta
 
-    print(result)
+    # print(result)
     return result
     # return result[::-1]
 
@@ -28,17 +29,17 @@ def get_pump_data(start_time, end_time, interval_minutes=5):
     on_idx = 0
     off_idx = 0
     while (start_time < end_time):
-        if (len(pump_on) and pump_on[on_idx].timestamp <= start_time):
+        if (on_idx < len(pump_on) and pump_on[on_idx].timestamp <= start_time):
             on_idx = on_idx + 1
             pump_graph_val = 100
-        elif (len(pump_off) and pump_off[off_idx].timestamp < start_time):
+        elif (off_idx < len(pump_off) and pump_off[off_idx].timestamp < start_time):
             off_idx = off_idx + 1
             pump_graph_val = 0
         
         result.append(pump_graph_val)
         start_time = start_time + delta
 
-    print(result)
+    # print(result)
     return result
 
 
@@ -49,14 +50,14 @@ def get_moisture_data(start, end):
     m_idx = 0
     moistures = MoistureModel.query.filter(MoistureModel.timestamp > start).all()
     while start < end:
-        if len(moistures) and moistures[m_idx].timestamp < start:
+        if (m_idx < len(moistures) and moistures[m_idx].timestamp < start):
             result.append(moistures[m_idx].moisture/1024*100)
             m_idx = m_idx + 1
         else:
             result.append(0)
         start = start + delta
 
-    print(result)
+    # print(result)
     return result
 
 
@@ -67,7 +68,7 @@ def fetch_chart_data(hours):
     moisture_data = get_moisture_data(start, end)
     pump_data = get_pump_data(start, end)
     xLabels = build_xlabels(start, end)
-    print(xLabels)
+    # print(xLabels)
 
     return {
         "pump": {

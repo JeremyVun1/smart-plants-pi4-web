@@ -1,7 +1,8 @@
 from datetime import datetime
-from smartplant import db
 from dataclasses import dataclass
 from typing import List
+
+from smartplant.database import db
 
 
 class LightingModel(db.Model):

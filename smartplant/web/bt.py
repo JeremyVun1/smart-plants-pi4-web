@@ -1,10 +1,10 @@
-import json
 import bluetooth
-from bluetooth import *
+import json
 import time
-from smartplant import db
-from .models import SmartPlantDevice
-from .util import readLine
+
+from .util import read_line, is_query_response
+from smartplant.models import SmartPlantDevice
+from smartplant.database import db
 
 
 def createBtSocket(addr, port=1):
@@ -14,25 +14,16 @@ def createBtSocket(addr, port=1):
     return socket
 
 
-def isQueryResponse(response):
-    try:
-        obj = json.loads(response)
-        return obj['d'] == 'y'
-    except Exception:
-        return False
-
-
 def fetchDeviceQueryResponse(addr):
+    time.sleep(0.5)
     socket = createBtSocket(addr)
 
+    timeout_counter = 0
     socket.send(int(8).to_bytes(1, "little"))  # concert int code into byte
 
-    timeout_counter = 0
-    buffer = readLine(socket)
-    print(buffer)
-    while (not isQueryResponse(buffer) and timeout_counter < 20):
-        buffer = readLine(socket)
-        print(buffer)
+    buffer = read_line(socket)
+    while (not is_query_response(buffer) and timeout_counter < 50):
+        buffer = read_line(socket)
         timeout_counter = timeout_counter + 1
 
     response = json.loads(buffer)
@@ -44,10 +35,12 @@ def find_new_smartplant_devices():
     print("finding new smartplant devices...")
     found_smartplants = []
 
-    nearby_devices = bluetooth.discover_devices()
+    
+    nearby_devices = bluetooth.discover_devices(duration=4)
     print(f"nearby devices: {nearby_devices}")
     for addr in nearby_devices:
         device_record = SmartPlantDevice.query.get(addr)
+        print(device_record)
 
         # device is not known
         if device_record is None:
@@ -65,26 +58,29 @@ def find_new_smartplant_devices():
     return found_smartplants
 
 
-def connect_smartplant_devices():
-    time.sleep(3)
-    smartplants = SmartPlantDevice.query.filter(SmartPlantDevice.isSmartPlant == True).all()
-    print("Connecting to Smartplants:")
-    print(smartplants)
+# try to connect to all known smart plants and return bt sockets
+def connect_smartplant_devices(app=None):
+    if app:
+        with app.app_context():
+            time.sleep(2)
+            smartplants = SmartPlantDevice.query.filter(SmartPlantDevice.isSmartPlant == True).all()
 
-    sockets = {}
-    for sp in smartplants:
-        sockets[sp.mac] = createBtSocket(sp.mac, 1)
+            sockets = {}
+            for sp in smartplants:
+                sockets[sp.mac] = createBtSocket(sp.mac, 1)
 
-    print(f"connected sockets: {sockets}")
-    return sockets
+            print(f"connected sockets: {sockets}")
+            return sockets
+    else:
+        time.sleep(2)
+        smartplants = SmartPlantDevice.query.filter(SmartPlantDevice.isSmartPlant == True).all()
 
+        sockets = {}
+        for sp in smartplants:
+            sockets[sp.mac] = createBtSocket(sp.mac, 1)
 
-def close_sockets(sockets):
-    try:
-        for mac in sockets:
-            sockets[mac].close()
-    except Exception:
-        print("could not close socket")
+        print(f"connected sockets: {sockets}")
+        return sockets
 
 
 def request_plant_state(socket):
@@ -92,36 +88,39 @@ def request_plant_state(socket):
 
 
 def request_full_state(sockets):
-    print("requesting full state")
-    responses = []
+    try:
+        responses = []
 
-    # send all the requests
-    for mac in sockets:
-        # clear the buffer
-        buffer = readLine(sockets[mac])
-        print(buffer)
-        while (readLine(sockets[mac])):
-            buffer = readLine(sockets[mac])
-            print(buffer)
-            continue
+        # send all the requests
+        for mac in sockets:
+            # clear the buffer
+            buffer = read_line(sockets[mac])
+            while (read_line(sockets[mac])):
+                buffer = read_line(sockets[mac])
+                continue
 
-        print("buffer flushed")
-        sockets[mac].send(int(0).to_bytes(1, "little"))
-        time.sleep(1.5)
-        response = json.loads(readLine(sockets[mac]))
-        print(response)
-        responses.append(response)
+            sockets[mac].send(int(0).to_bytes(1, "little"))
+            time.sleep(1)
+            response = json.loads(read_line(sockets[mac]))
+            print(response)
+            responses.append(response)
 
-    return responses
+        return responses
+    except Exception:
+        return None
 
 
 def send_pump_commands(socket, curr_state, form_state):
     print("sending pump commands")
-    print(curr_state)
-    print(form_state)
     # pump toggle mode between auto/manual
-    if form_state['pumpMode'] != curr_state.pumpmode:
+    if 'pumpMode' in form_state and form_state['pumpMode'] != curr_state.pumpmode:
+        if form_state['pumpMode'] == 'a':
+            mode_code = int(1).to_bytes(1, "little")
+        else:
+            mode_code = int(0).to_bytes(1, "little")
         socket.send(int(1).to_bytes(1, "little"))
+        socket.send(mode_code)
+
 
     # pump on/off
     if curr_state.pumpstate and 'pumpOn' not in form_state:
@@ -137,8 +136,6 @@ def send_pump_commands(socket, curr_state, form_state):
 
 def send_light_commands(socket, curr_state, form_state):
     print("sending light commands")
-    print(curr_state)
-    print(form_state)
     # light on/off
     if curr_state.lightstate and 'lightOn' not in form_state:
         socket.send(int(6).to_bytes(1, "little"))

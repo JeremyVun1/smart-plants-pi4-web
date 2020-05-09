@@ -1,6 +1,7 @@
 # Database access
-from .models import SmartPlantState, SmartPlantDevice, PumpModel, LightingModel, PlantModel, MoistureModel
-from smartplant import db
+from smartplant.models import *
+from smartplant.database import db
+import json
 
 
 def parse_light_state(guid, json_obj):
@@ -54,6 +55,9 @@ parse_module_func_map = {
 
 
 def save_smartplants(smartplant_devices):
+    if not smartplant_devices:
+        return
+
     print("saving smartplants to db")
 
     for smartplant in smartplant_devices:
@@ -93,8 +97,6 @@ def load_smartplant(device):
     light = LightingModel.query.filter_by(guid=device.guid).order_by(LightingModel.timestamp.desc()).limit(1).one_or_none()
     moist = MoistureModel.query.filter_by(guid=device.guid).order_by(MoistureModel.timestamp.desc()).limit(1).one_or_none()
 
-    print(plant.pid)
-
     if plant.pid > 0:
         result = SmartPlantState(
             mac=device.mac,
@@ -123,16 +125,12 @@ def load_device(guid):
 
 
 def update_light_db_with_commands(guid, form_dict):
-    print("saving into light db")
-    print(form_dict)
     model = LightingModel(guid=guid, mode=form_dict['lightMode'], state=('lightOn' in form_dict and form_dict['lightOn'] == 'y'))
     db.session.add(model)
     db.session.commit()
 
 
 def update_pump_db_with_commands(guid, form_dict):
-    print("saving into pump db")
-    print(form_dict)
     model = PumpModel(guid=guid, mode=form_dict['pumpMode'], state=('pumpOn' in form_dict and form_dict['pumpOn'] == 'y'), speed=form_dict['pumpSpeed'])
     db.session.add(model)
     db.session.commit()
